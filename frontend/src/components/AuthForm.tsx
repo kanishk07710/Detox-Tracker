@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import GuestButton from '@/components/GuestButton';
 import { ApiError, authApi, errorMessage } from '@/lib/api';
 import { validateCredentials, type FieldErrors } from '@/lib/validation';
 
@@ -72,6 +73,10 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           <>Already registered? <Link href="/login">Log in</Link></>
         )}
       </p>
+      <div className="auth-alt">
+        <p className="muted">Just looking around? Nothing is sent to the server.</p>
+        <GuestButton />
+      </div>
     </main>
   );
 }

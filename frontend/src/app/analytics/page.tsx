@@ -36,6 +36,7 @@ function AnalyticsContent() {
       {data && data.days.length > 0 && (
         <>
           {/* One stacked column per day; segment colour = activity. Flexbox, no chart library. */}
+          <div className="panel" style={{ paddingBottom: '0.9rem' }}>
           <div role="img" aria-label="Minutes per day, stacked by activity"
                style={{ display: 'flex', alignItems: 'flex-end', gap: data.days.length > 10 ? 3 : 10, height: 180,
                         borderBottom: '1px solid var(--rule)' }}>
@@ -57,6 +58,7 @@ function AnalyticsContent() {
             <span>{data.days[0].date}</span>
             <span>Tallest day {formatMinutes(max)}</span>
             <span>{data.days[data.days.length - 1].date}</span>
+          </div>
           </div>
           <ul className="key" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 1.5rem', border: 0 }}>
             {ACTIVITIES.map((a) => (

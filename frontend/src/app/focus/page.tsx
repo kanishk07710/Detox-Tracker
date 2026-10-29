@@ -72,7 +72,7 @@ function FocusContent() {
       {session ? (
         <>
           <p>{ACTIVITY_LABEL[session.activity]} in progress.</p>
-          <p style={{ fontSize: '2rem', fontVariantNumeric: 'tabular-nums' }} aria-live="off">
+          <p className="clock" aria-live="off">
             {clock(now - new Date(session.startedAt).getTime())}
           </p>
           <p className="muted">Started {new Date(session.startedAt).toLocaleTimeString()}</p>
