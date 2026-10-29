@@ -44,7 +44,7 @@ jobs:
     steps:
       # 1. Check out the code
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # 2. Set up Node.js with caching
       - name: Set up Node.js
