@@ -18,11 +18,29 @@
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { env } from './config/env';
+import { apiRouter } from './routes';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { requestLogger } from './middleware/requestLogger';
 
 const app = express();
 
+// Render (and most PaaS) terminate TLS at a reverse proxy. Trusting ONE hop makes
+// req.ip the real client (needed for rate limiting) and req.secure correct.
+app.set('trust proxy', 1);
+
 // ── Middleware ─────────────────────────────────────────────────────────────
+
+// Log every request first so even rejected ones are recorded.
+app.use(requestLogger);
+
+// helmet sets safe default security headers (nosniff, HSTS, frame protection...).
+app.use(helmet());
+
+// Populates req.cookies so requireAuth can read the session cookie.
+app.use(cookieParser());
 
 // Parse JSON request bodies.
 // Without this, req.body would be undefined for POST/PATCH requests.
@@ -46,26 +64,13 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', env: env.NODE_ENV });
 });
 
-// Future routes will be mounted here as the project grows, e.g.:
-// app.use('/api/auth', authRouter);
-// app.use('/api/logs', logsRouter);
+// All feature routers live behind /api. Add new ones in routes/index.ts.
+app.use('/api', apiRouter);
 
-// ── Error-handling middleware ───────────────────────────────────────────────
-// Must be registered LAST — Express identifies error handlers by their 4-parameter signature.
-// This is a placeholder; the real handler will be added in Phase 2.
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _next: express.NextFunction
-  ) => {
-    console.error(err.stack);
-    res
-      .status(500)
-      .json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong.' } });
-  }
-);
+// ── 404 + error-handling middleware ─────────────────────────────────────────
+// Order matters: unmatched requests fall through to the 404 handler, which creates an
+// AppError, which falls through to the error handler. Both must be registered LAST.
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
