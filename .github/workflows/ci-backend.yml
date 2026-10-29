@@ -66,6 +66,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # 6a. Apply migrations to the throwaway service-container DB so the Prisma
+      # integration tests (which skip themselves without DATABASE_URL) have tables.
+      # This also proves the hand-written migration SQL actually runs on Postgres.
+      - name: Apply migrations (test DB)
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/detox_test
+          DIRECT_URL: postgresql://testuser:testpassword@localhost:5432/detox_test
+
       # 6. Run tests (unit + integration)
       # The DATABASE_URL points at the service container above — not Supabase.
       # SESSION_SECRET and FRONTEND_ORIGIN are set to dummy values for tests.

@@ -1,22 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Detox Tracker',
-  description: 'Log your activities, set goals, build streaks, and reduce social media usage.',
+  description: 'Log your activities, set goals, and track your streak.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// System font stack (set in globals.css): no external font download, no
+// layout shift, and the build does not need network access.
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
