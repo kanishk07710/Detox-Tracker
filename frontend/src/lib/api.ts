@@ -1,51 +1,146 @@
 /**
- * lib/api.ts — The single place that wraps all fetch() calls to the backend.
+ * lib/api.ts — the single place that talks to the backend.
  *
- * WHY centralise API calls here:
- *   - If the backend URL or auth header changes, we update ONE file.
- *   - All requests get consistent error handling.
- *   - Components stay clean — they call a function like `api.getLogs()`,
- *     not raw fetch() with repeated boilerplate.
- *
- * This file will grow as new API endpoints are added in later phases.
- * For Phase 0, it only exports the base URL and a helper fetch wrapper.
+ * WHY: one file to change if a URL or response shape changes, and every
+ * request gets the same error handling.
  */
+import type {
+  Activity, ActivityLog, Analytics, CreateLogInput, Dashboard, FocusSession, Goal, GoalType, User,
+} from '@/types';
+
+import { GUEST_USER, guestApi, isGuest, leaveGuest } from '@/lib/guest';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 /**
- * A thin wrapper around fetch that:
- * - Prepends the API base URL
- * - Includes credentials (cookies) by default
- * - Throws an error if the response is not OK
+ * An HTTP error from the backend ({ error: { code, message, details } }).
+ * A network failure (server down, CORS, offline) is NOT this: fetch throws a
+ * TypeError instead, so the UI can say "cannot reach server" vs "server said no".
  */
-export async function apiFetch<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+
+  /** Field-level messages from the backend, if details is an array or { field: msg }. */
+  fieldErrors(): Record<string, string> {
+    const out: Record<string, string> = {};
+    const d = this.details;
+    if (Array.isArray(d)) {
+      for (const item of d) {
+        const f = item as { field?: string; path?: string | string[]; message?: string };
+        const key = Array.isArray(f.path) ? f.path[0] : f.path ?? f.field;
+        if (key && f.message) out[String(key)] = f.message;
+      }
+    } else if (d && typeof d === 'object') {
+      for (const [k, v] of Object.entries(d as Record<string, unknown>)) {
+        out[k] = Array.isArray(v) ? String(v[0]) : String(v);
+      }
+    }
+    return out;
+  }
+}
+
+export function errorMessage(e: unknown): string {
+  if (e instanceof ApiError) return e.message;
+  return 'Cannot reach the server. Check your connection and try again.';
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // fetch() rejects only on network failure; we let that propagate as-is.
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include', // send cookies for session auth
+    credentials: 'include', // send the session cookie
     headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
     },
   });
 
   if (!res.ok) {
-    // Try to parse the backend's error JSON; fall back to a generic message
     const body = await res.json().catch(() => ({}));
-    throw new Error(
-      body?.error?.message ?? `Request failed with status ${res.status}`
+    throw new ApiError(
+      res.status,
+      body?.error?.code ?? 'UNKNOWN',
+      body?.error?.message ?? `Request failed (${res.status})`,
+      body?.error?.details
     );
   }
-
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-// TODO (Phase 3+): Add typed API functions here, e.g.:
-// export const logsApi = {
-//   create: (data: CreateLogInput) =>
-//     apiFetch<{ log: ActivityLog }>('/api/logs', { method: 'POST', body: JSON.stringify(data) }),
-//   list: () => apiFetch<{ logs: ActivityLog[] }>('/api/logs'),
-// };
+const json = (data: unknown) => JSON.stringify(data);
+const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// In guest mode every call below is answered from localStorage (lib/guest.ts)
+// and never touches the network.
+export const authApi = {
+  register: (email: string, password: string) =>
+    request<{ user: User }>('/api/auth/register', { method: 'POST', body: json({ email, password }) }),
+  login: (email: string, password: string) =>
+    request<{ user: User }>('/api/auth/login', { method: 'POST', body: json({ email, password }) }),
+  logout: async () => {
+    if (isGuest()) return leaveGuest();
+    return request<void>('/api/auth/logout', { method: 'POST' });
+  },
+  me: async () => (isGuest() ? { user: GUEST_USER } : request<{ user: User }>('/api/auth/me')),
+};
+
+export const logsApi = {
+  list: async (from?: string, to?: string) => {
+    if (isGuest()) return guestApi.logs.list();
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const qs = q.toString();
+    return request<{ logs: ActivityLog[] }>(`/api/logs${qs ? `?${qs}` : ''}`);
+  },
+  create: async (input: CreateLogInput) =>
+    isGuest() ? guestApi.logs.create(input) : request<ActivityLog>('/api/logs', { method: 'POST', body: json(input) }),
+  remove: async (id: string) =>
+    isGuest() ? guestApi.logs.remove(id) : request<void>(`/api/logs/${id}`, { method: 'DELETE' }),
+};
+
+// ---- Phase 8: shapes are assumptions; adjust here if the backend differs ----
+
+export const dashboardApi = {
+  get: async (date: string) =>
+    isGuest() ? guestApi.dashboard(date) : request<Dashboard>(`/api/dashboard?date=${date}&tz=${encodeURIComponent(tz())}`),
+};
+
+export const goalsApi = {
+  list: async () => {
+    if (isGuest()) return guestApi.goals.list();
+    const r = await request<{ goals: Goal[] }>('/api/goals');
+    return r.goals;
+  },
+  create: async (input: { activity: Activity; type: GoalType; minutes: number }) =>
+    isGuest() ? guestApi.goals.create(input) : request<unknown>('/api/goals', { method: 'POST', body: json(input) }),
+  remove: async (id: string) =>
+    isGuest() ? guestApi.goals.remove(id) : request<void>(`/api/goals/${id}`, { method: 'DELETE' }),
+};
+
+export const sessionsApi = {
+  active: async () =>
+    isGuest() ? guestApi.session.active() : request<{ session: FocusSession | null }>('/api/sessions/active'),
+  start: async (activity: Activity) =>
+    isGuest()
+      ? guestApi.session.start(activity)
+      : request<{ session: FocusSession }>('/api/sessions/start', { method: 'POST', body: json({ activity }) }),
+  stop: async () =>
+    isGuest()
+      ? guestApi.session.stop()
+      : request<{ session: FocusSession; log: ActivityLog }>('/api/sessions/stop', { method: 'POST' }),
+};
+
+export const analyticsApi = {
+  summary: async (range: 'week' | 'month') =>
+    isGuest() ? guestApi.analytics(range) : request<Analytics>(`/api/analytics/summary?range=${range}&tz=${encodeURIComponent(tz())}`),
+};

@@ -32,6 +32,13 @@ const envSchema = z.object({
   // Long random secret used to sign session tokens.
   // In Phase 6, this will be used by the session middleware.
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+
+  // Postgres connection strings (Phase 5). OPTIONAL on purpose: when DATABASE_URL
+  // is unset the app falls back to in-memory repositories (handy for unit tests
+  // and first-run dev with no database).
+  // DATABASE_URL = pooled (app); DIRECT_URL = direct (migrations only).
+  DATABASE_URL: z.string().min(1).optional(),
+  DIRECT_URL: z.string().min(1).optional(),
 });
 
 // Parse and validate. If invalid, log the errors and stop the process.

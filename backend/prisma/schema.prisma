@@ -1,0 +1,114 @@
+// schema.prisma — the single source of truth for our database shape.
+//
+// Prisma reads this file and (a) generates a typed client (`prisma generate`)
+// and (b) diffs it against the database to create SQL migrations.
+// Rules that Prisma cannot express (CHECK constraints, partial unique indexes,
+// Row Level Security) are hand-added to the migration SQL — see
+// prisma/migrations/*_init/migration.sql.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled connection (Supavisor) — used by the running app.
+  url       = env("DATABASE_URL")
+  // Direct connection — used only by `prisma migrate`. Migrations need a full
+  // session, which a transaction-mode pooler cannot provide. See ARCHITECTURE.md 3.1.
+  directUrl = env("DIRECT_URL")
+}
+
+// Must match the Activity enum in the API contract (zod schema) exactly.
+enum Activity {
+  SOCIAL_MEDIA
+  CODING
+  STUDY
+  EXERCISE
+  OTHER
+}
+
+// TARGET = "do at least N minutes" (coding, exercise)
+// LIMIT  = "stay under N minutes"  (social media)
+enum GoalType {
+  TARGET
+  LIMIT
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  // Stored lowercased by the auth service; @unique gives us a unique index.
+  email        String   @unique
+  // Never the plain password. Hash produced by argon2/bcrypt (Phase 6).
+  passwordHash String
+  // IANA zone name, e.g. "Asia/Kolkata". "Today" is computed in this zone (ADR 004).
+  timezone     String   @default("UTC")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  logs          ActivityLog[]
+  goals         Goal[]
+  focusSessions FocusSession[]
+
+  @@map("users")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  activity  Activity
+  // CHECK (minutes BETWEEN 1 AND 1440) is added in the migration SQL.
+  minutes   Int
+  // CHECK (char_length(note) <= 280) is added in the migration SQL.
+  note      String?
+  // When the activity happened (user-supplied); createdAt is when we stored it.
+  loggedAt  DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  // onDelete: Cascade -> deleting a user deletes their logs (no orphans).
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Serves "this user's logs in a date range" (dashboard, analytics).
+  @@index([userId, loggedAt])
+  @@map("activity_logs")
+}
+
+// Phase 8 — one goal per (user, activity).
+model Goal {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  activity  Activity
+  type      GoalType
+  // CHECK (minutes BETWEEN 1 AND 1440) in migration SQL.
+  minutes   Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  // @updatedAt: Prisma sets this on every update.
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One TARGET and one LIMIT allowed per activity (changed in Phase 8 by agent 5;
+  // see migration 20260102000000_goals_unique_per_type).
+  @@unique([userId, activity, type])
+  @@map("goals")
+}
+
+// Phase 8 — server-authoritative focus timer (timestamps come from the server).
+model FocusSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  activity  Activity
+  startedAt DateTime  @default(now()) @db.Timestamptz(6)
+  // NULL while the session is running.
+  endedAt   DateTime? @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // "At most one running session per user" is a PARTIAL unique index
+  // (WHERE "endedAt" IS NULL), which Prisma cannot express; it lives in the
+  // migration SQL.
+  @@index([userId, startedAt])
+  @@map("focus_sessions")
+}
+
+// AGENT-5-MARKER: append new fields/models for Phase 8 above or below this line,
+// then add a NEW migration (never edit an applied migration).

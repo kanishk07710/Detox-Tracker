@@ -43,12 +43,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Secrets cannot be used directly in `if:`, so expose a boolean via env first.
+      - name: Check for production DB secret
+        id: guard
+        env:
+          PROD_DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          if [ -z "$PROD_DIRECT_URL" ]; then
+            echo "::notice::PROD_DIRECT_URL secret not set - skipping migration."
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # Apply all pending migrations to the production database.
-      # The DIRECT_URL secret is set in GitHub → Settings → Secrets → Actions.
-      # It points at the Supabase DIRECT (not pooled) connection string for detox-prod.
+      # The PROD_DIRECT_URL secret is set in GitHub -> Settings -> Secrets -> Actions.
+      # It is the Supabase DIRECT (not pooled) connection string for detox-prod.
+      # `migrate deploy` only applies committed migrations; it never creates or resets.
       - name: Run migrations
+        if: steps.guard.outputs.has_secret == 'true'
         run: npx prisma migrate deploy
         env:
-          # DIRECT_URL is required for migrations (not DATABASE_URL / pooled)
           DATABASE_URL: ${{ secrets.PROD_DIRECT_URL }}
           DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
