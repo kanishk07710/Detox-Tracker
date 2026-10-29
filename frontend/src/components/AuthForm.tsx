@@ -43,7 +43,8 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   }
 
   return (
-    <main className="page" style={{ maxWidth: '24rem' }}>
+    <main className="page" style={{ maxWidth: '26rem' }}>
+      <Link href="/" className="brand" style={{ textDecoration: 'none' }}>Detox Tracker</Link>
       <h1>{isLogin ? 'Log in' : 'Create account'}</h1>
       <form onSubmit={onSubmit} noValidate>
         <div className="field">

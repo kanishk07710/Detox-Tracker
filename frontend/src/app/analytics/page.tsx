@@ -35,14 +35,37 @@ function AnalyticsContent() {
       {data && data.days.length === 0 && <p className="muted">No data for this range.</p>}
       {data && data.days.length > 0 && (
         <>
-          {/* Plain SVG: one bar per day = total minutes, one colour. */}
-          <svg role="img" aria-label="Total minutes per day" width="100%" height="120"
-               viewBox={`0 0 ${data.days.length * 10} 100`} preserveAspectRatio="none">
-            {data.days.map((d, i) => {
-              const h = (dayTotal(d.totalsByActivity) / max) * 100;
-              return <rect key={d.date} x={i * 10 + 1} y={100 - h} width={8} height={h} fill="var(--accent)" />;
+          {/* One stacked column per day; segment colour = activity. Flexbox, no chart library. */}
+          <div role="img" aria-label="Minutes per day, stacked by activity"
+               style={{ display: 'flex', alignItems: 'flex-end', gap: data.days.length > 10 ? 3 : 10, height: 180,
+                        borderBottom: '1px solid var(--rule)' }}>
+            {data.days.map((d) => {
+              const t = dayTotal(d.totalsByActivity);
+              return (
+                <div key={d.date} title={`${d.date}: ${formatMinutes(t)}`}
+                     style={{ flex: 1, height: `${(t / max) * 100}%`, display: 'flex', flexDirection: 'column-reverse',
+                              gap: 1, minHeight: t > 0 ? 2 : 0 }}>
+                  {ACTIVITIES.map((a) => {
+                    const m = d.totalsByActivity[a] ?? 0;
+                    return m > 0 ? <span key={a} className={`c-${a}`} style={{ flex: m }} /> : null;
+                  })}
+                </div>
+              );
             })}
-          </svg>
+          </div>
+          <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.4rem' }}>
+            <span>{data.days[0].date}</span>
+            <span>Tallest day {formatMinutes(max)}</span>
+            <span>{data.days[data.days.length - 1].date}</span>
+          </div>
+          <ul className="key" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 1.5rem', border: 0 }}>
+            {ACTIVITIES.map((a) => (
+              <li key={a} style={{ border: 0, padding: 0 }}>
+                <span className={`dot c-${a}`} />{ACTIVITY_LABEL[a]}
+              </li>
+            ))}
+          </ul>
+          <div className="scroll-x">
           <table className="plain" style={{ marginTop: '1rem' }}>
             <thead>
               <tr>
@@ -61,6 +84,7 @@ function AnalyticsContent() {
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
     </>

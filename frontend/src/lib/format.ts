@@ -8,6 +8,9 @@ export const ACTIVITY_LABEL: Record<Activity, string> = {
   OTHER: 'Other',
 };
 
+/** Length of the "day" the ribbon represents: 16 waking hours, in minutes. */
+export const WAKING_MINUTES = 16 * 60;
+
 export function formatMinutes(m: number): string {
   const h = Math.floor(m / 60);
   const r = m % 60;

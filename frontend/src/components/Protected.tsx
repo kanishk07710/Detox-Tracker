@@ -51,18 +51,22 @@ export default function Protected({ title, children }: { title: string; children
   if (!user) return <main className="page"><p className="muted">Loading...</p></main>;
 
   return (
-    <main className="page">
-      <nav className="nav" aria-label="Main">
+    <div className="shell">
+      <nav className="rail" aria-label="Main">
         <span className="brand">Detox Tracker</span>
-        {LINKS.map(([href, label]) => (
-          <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>
-            {label}
-          </Link>
-        ))}
-        <button className="linkbtn" onClick={logout}>Log out</button>
+        <div className="links">
+          {LINKS.map(([href, label]) => (
+            <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>
+              {label}
+            </Link>
+          ))}
+        </div>
+        <button className="linkbtn out" onClick={logout}>Log out</button>
       </nav>
-      <h1>{title}</h1>
-      {children}
-    </main>
+      <main className="content">
+        <h1>{title}</h1>
+        {children}
+      </main>
+    </div>
   );
 }
