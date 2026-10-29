@@ -8,6 +8,8 @@ import type {
   Activity, ActivityLog, Analytics, CreateLogInput, Dashboard, FocusSession, Goal, GoalType, User,
 } from '@/types';
 
+import { GUEST_USER, guestApi, isGuest, leaveGuest } from '@/lib/guest';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 /**
@@ -77,54 +79,68 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 const json = (data: unknown) => JSON.stringify(data);
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+// In guest mode every call below is answered from localStorage (lib/guest.ts)
+// and never touches the network.
 export const authApi = {
   register: (email: string, password: string) =>
     request<{ user: User }>('/api/auth/register', { method: 'POST', body: json({ email, password }) }),
   login: (email: string, password: string) =>
     request<{ user: User }>('/api/auth/login', { method: 'POST', body: json({ email, password }) }),
-  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
-  me: () => request<{ user: User }>('/api/auth/me'),
+  logout: async () => {
+    if (isGuest()) return leaveGuest();
+    return request<void>('/api/auth/logout', { method: 'POST' });
+  },
+  me: async () => (isGuest() ? { user: GUEST_USER } : request<{ user: User }>('/api/auth/me')),
 };
 
 export const logsApi = {
-  list: (from?: string, to?: string) => {
+  list: async (from?: string, to?: string) => {
+    if (isGuest()) return guestApi.logs.list();
     const q = new URLSearchParams();
     if (from) q.set('from', from);
     if (to) q.set('to', to);
     const qs = q.toString();
     return request<{ logs: ActivityLog[] }>(`/api/logs${qs ? `?${qs}` : ''}`);
   },
-  create: (input: CreateLogInput) =>
-    request<ActivityLog>('/api/logs', { method: 'POST', body: json(input) }),
-  remove: (id: string) => request<void>(`/api/logs/${id}`, { method: 'DELETE' }),
+  create: async (input: CreateLogInput) =>
+    isGuest() ? guestApi.logs.create(input) : request<ActivityLog>('/api/logs', { method: 'POST', body: json(input) }),
+  remove: async (id: string) =>
+    isGuest() ? guestApi.logs.remove(id) : request<void>(`/api/logs/${id}`, { method: 'DELETE' }),
 };
 
 // ---- Phase 8: shapes are assumptions; adjust here if the backend differs ----
 
 export const dashboardApi = {
-  get: (date: string) =>
-    request<Dashboard>(`/api/dashboard?date=${date}&tz=${encodeURIComponent(tz())}`),
+  get: async (date: string) =>
+    isGuest() ? guestApi.dashboard(date) : request<Dashboard>(`/api/dashboard?date=${date}&tz=${encodeURIComponent(tz())}`),
 };
 
 export const goalsApi = {
   list: async () => {
+    if (isGuest()) return guestApi.goals.list();
     const r = await request<{ goals: Goal[] }>('/api/goals');
     return r.goals;
   },
-  create: (input: { activity: Activity; type: GoalType; minutes: number }) =>
-    request<unknown>('/api/goals', { method: 'POST', body: json(input) }),
-  remove: (id: string) => request<void>(`/api/goals/${id}`, { method: 'DELETE' }),
+  create: async (input: { activity: Activity; type: GoalType; minutes: number }) =>
+    isGuest() ? guestApi.goals.create(input) : request<unknown>('/api/goals', { method: 'POST', body: json(input) }),
+  remove: async (id: string) =>
+    isGuest() ? guestApi.goals.remove(id) : request<void>(`/api/goals/${id}`, { method: 'DELETE' }),
 };
 
 export const sessionsApi = {
-  active: () => request<{ session: FocusSession | null }>('/api/sessions/active'),
-  start: (activity: Activity) =>
-    request<{ session: FocusSession }>('/api/sessions/start', { method: 'POST', body: json({ activity }) }),
-  stop: () =>
-    request<{ session: FocusSession; log: ActivityLog }>('/api/sessions/stop', { method: 'POST' }),
+  active: async () =>
+    isGuest() ? guestApi.session.active() : request<{ session: FocusSession | null }>('/api/sessions/active'),
+  start: async (activity: Activity) =>
+    isGuest()
+      ? guestApi.session.start(activity)
+      : request<{ session: FocusSession }>('/api/sessions/start', { method: 'POST', body: json({ activity }) }),
+  stop: async () =>
+    isGuest()
+      ? guestApi.session.stop()
+      : request<{ session: FocusSession; log: ActivityLog }>('/api/sessions/stop', { method: 'POST' }),
 };
 
 export const analyticsApi = {
-  summary: (range: 'week' | 'month') =>
-    request<Analytics>(`/api/analytics/summary?range=${range}&tz=${encodeURIComponent(tz())}`),
+  summary: async (range: 'week' | 'month') =>
+    isGuest() ? guestApi.analytics(range) : request<Analytics>(`/api/analytics/summary?range=${range}&tz=${encodeURIComponent(tz())}`),
 };

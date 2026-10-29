@@ -1,17 +1,16 @@
 'use client';
 
 /**
- * Home — the landing page. If already signed in, go straight to /logs.
+ * Home — the landing page. If already signed in (or a guest), go straight to /logs.
  * Client component because the session check needs the browser's cookie.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import DayRibbon from '@/components/DayRibbon';
+import FocusTile from '@/components/FocusTile';
+import GuestButton from '@/components/GuestButton';
+import LandingDemo from '@/components/LandingDemo';
 import { authApi } from '@/lib/api';
-
-// A made-up day, shown so the ribbon makes sense before anyone has logged.
-const EXAMPLE = { SOCIAL_MEDIA: 95, CODING: 210, STUDY: 60, EXERCISE: 40, OTHER: 35 };
 
 export default function HomePage() {
   const router = useRouter();
@@ -23,26 +22,59 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <main className="page" style={{ maxWidth: '40rem', paddingTop: '5rem' }}>
-      <span className="brand">Detox Tracker</span>
-      <h1 style={{ fontSize: '2.6rem', letterSpacing: '-0.03em', lineHeight: 1.1, maxWidth: '30rem' }}>
-        See where your day actually goes.
-      </h1>
-      <p style={{ fontSize: '1.1rem' }}>
-        Log time as you spend it, set a daily limit on social media, and keep a streak going on the days you stay under it.
-      </p>
+    <main className="landing">
+      <header className="landing-nav">
+        <span className="brand">Detox Tracker</span>
+        <nav aria-label="Account">
+          <Link href="/login">Log in</Link>
+          <Link href="/register" className="btn">Create account</Link>
+        </nav>
+      </header>
 
-      <div style={{ margin: '2.5rem 0' }}>
-        <DayRibbon totals={EXAMPLE} />
-        <p className="muted" style={{ marginTop: '0.75rem' }}>
-          An example day: 16 waking hours, one segment per activity.
+      <section className="hero">
+        <h1>See where your day actually goes.</h1>
+        <p className="lede">
+          Log time as you spend it, set a daily limit on social media, and keep a streak going on the days you stay under it.
         </p>
-      </div>
+        <div className="cta">
+          <GuestButton className="btn big" />
+          <Link href="/register" className="btn big secondary">Create account</Link>
+        </div>
+        <p className="muted">Guest mode keeps everything in this browser. No account, no server.</p>
+      </section>
 
-      <p style={{ display: 'flex', gap: '0.75rem' }}>
-        <Link href="/register" className="btn" style={{ textDecoration: 'none' }}>Create account</Link>
-        <Link href="/login" className="btn secondary" style={{ textDecoration: 'none' }}>Log in</Link>
-      </p>
+      <section aria-labelledby="demo-h">
+        <h2 id="demo-h" className="sr-only">Build a sample day</h2>
+        <LandingDemo />
+      </section>
+
+      <section className="bento" aria-label="What you can do">
+        <article className="tile tile-wide">
+          <h3>Log in seconds</h3>
+          <p>Pick an activity, enter the minutes, add a note if you want one. Your day fills in as you go.</p>
+          <div className="mini-ribbon" aria-hidden="true">
+            <span className="c-CODING" style={{ flex: 5 }} />
+            <span className="c-SOCIAL_MEDIA" style={{ flex: 2 }} />
+            <span className="c-STUDY" style={{ flex: 3 }} />
+            <span className="c-EXERCISE" style={{ flex: 1 }} />
+          </div>
+        </article>
+        <article className="tile">
+          <h3>Limits and targets</h3>
+          <p>At most 30 minutes of social media. At least an hour of study.</p>
+          <div className="bar" aria-hidden="true"><div className="c-SOCIAL_MEDIA" style={{ width: '72%' }} /></div>
+        </article>
+        <article className="tile">
+          <h3>Focus timer</h3>
+          <p>Start it, work, stop it. The time is logged for you.</p>
+          <FocusTile />
+        </article>
+      </section>
+
+      <footer className="landing-foot">
+        <span className="muted">Detox Tracker</span>
+        <Link href="/login">Log in</Link>
+      </footer>
     </main>
   );
 }

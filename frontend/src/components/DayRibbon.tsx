@@ -24,7 +24,9 @@ export default function DayRibbon({ totals }: { totals: Partial<Record<Activity,
       </div>
       <div className="ribbon-scale" aria-hidden="true">
         <span>Wake</span>
+        <span>4h</span>
         <span>8h</span>
+        <span>12h</span>
         <span>16h</span>
       </div>
     </div>

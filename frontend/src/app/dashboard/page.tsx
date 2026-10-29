@@ -27,7 +27,7 @@ function DashboardContent() {
     <>
       <p className="muted">{data.date}</p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem 3.5rem', margin: '0.5rem 0 2rem' }}>
+      <div className="stats">
         <div>
           <div className="figure">{formatMinutes(total)}</div>
           <div className="muted">logged today</div>
@@ -44,6 +44,7 @@ function DashboardContent() {
         </div>
       </div>
 
+      <div className="panel">
       <DayRibbon totals={data.totals} />
 
       <ul className="key">
@@ -54,12 +55,13 @@ function DashboardContent() {
           </li>
         ))}
       </ul>
+      </div>
 
       <h2>Goals</h2>
       {data.goals.length === 0 && (
         <p className="muted">No goals yet. Set a daily limit for social media on the Goals page.</p>
       )}
-      {data.goals.map((g) => {
+      {data.goals.length > 0 && <div className="panel">{data.goals.map((g) => {
         const pct = Math.min(100, Math.round((g.progressMinutes / g.minutes) * 100));
         const over = g.type === 'LIMIT' && g.progressMinutes > g.minutes;
         const status = over
@@ -82,7 +84,7 @@ function DashboardContent() {
             </div>
           </div>
         );
-      })}
+      })}</div>}
     </>
   );
 }
