@@ -2,67 +2,152 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tiny set of design tokens. Everything else is plain neutral CSS.
-   WHY variables: change the accent in one place, no theme library needed. */
+/* Design tokens. Colour is reserved for data: each activity owns one hue, and
+   the interface itself stays ink-on-paper so those hues are what you notice.
+   No gradients, no shadows. */
 :root {
-  --bg: #fcfcfb;
-  --fg: #1a1a1a;
-  --muted: #5f5f5f;
-  --border: #d4d4d0;
-  --accent: #1f4d36; /* dark green */
-  --danger: #a12020;
+  --paper: #f3f5f7;
+  --surface: #ffffff;
+  --ink: #101828;
+  --muted: #566074;
+  --rule: #d5dbe2;
+  --danger: #b4233f;
+
+  --c-social: #d6336c; /* the one we want less of */
+  --c-coding: #2b50d8;
+  --c-study: #0f8f7a;
+  --c-exercise: #d99a00;
+  --c-other: #8c97a8;
+
+  --rail: 13.5rem;
 }
 
+* { box-sizing: border-box; }
+
 body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer components {
-  .page { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-  .page h1 { font-size: 1.4rem; font-weight: 600; margin: 1.5rem 0 1rem; }
-  .page h2 { font-size: 1.05rem; font-weight: 600; margin: 2rem 0 0.5rem; }
-  .muted { color: var(--muted); font-size: 0.9rem; }
+  /* ── Shell: left rail on desktop, scrolling top bar on mobile ───────── */
+  .shell { min-height: 100vh; }
+  .rail {
+    display: flex; flex-direction: column; gap: 0.15rem;
+    padding: 1rem; border-bottom: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .rail .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-bottom: 0.5rem; }
+  .rail .links { display: flex; gap: 0.25rem; }
+  .rail a, .rail .linkbtn {
+    padding: 0.35rem 0.6rem; border-radius: 3px; color: var(--muted);
+    text-decoration: none; white-space: nowrap; font-weight: 500;
+  }
+  .rail a:hover, .rail .linkbtn:hover { color: var(--ink); }
+  .rail a[aria-current='page'] { background: var(--ink); color: #fff; }
+  .rail .out { margin-top: 0.5rem; }
 
-  .nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: baseline;
-         border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
-  .nav .brand { font-weight: 600; margin-right: auto; }
-  .nav a, .linkbtn { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
-  .nav a[aria-current='page'] { font-weight: 600; }
-  .linkbtn { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
-  .linkbtn.danger { color: var(--danger); }
+  .content { padding: 1.5rem 1rem 5rem; max-width: 46rem; }
+
+  @media (min-width: 52rem) {
+    .shell { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); }
+    .rail {
+      position: sticky; top: 0; height: 100vh; border-bottom: 0;
+      border-right: 1px solid var(--rule); padding: 1.75rem 1rem;
+    }
+    .rail .links { flex-direction: column; }
+    .rail .out { margin-top: auto; }
+    .content { padding: 2.5rem 3rem 5rem; }
+  }
+
+  /* Pages without the rail (auth, landing). */
+  .page { max-width: 30rem; margin: 0 auto; padding: 4rem 1.25rem; }
+  .page .brand { font-weight: 700; letter-spacing: -0.01em; display: block; margin-bottom: 2.5rem; }
+
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 1.5rem; }
+  h2 { font-size: 1.05rem; font-weight: 700; margin: 2.5rem 0 0.75rem; }
+  p { margin: 0 0 0.75rem; max-width: 36rem; }
+  .muted { color: var(--muted); font-size: 0.92rem; }
+  .figure { font-size: 3rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1;
+            font-variant-numeric: tabular-nums; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+
+  .linkbtn { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-align: left; }
+  .linkbtn.danger { color: var(--danger); text-decoration: underline; text-underline-offset: 3px; }
 
   a:focus-visible, button:focus-visible, input:focus-visible,
   select:focus-visible, textarea:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
+    outline: 2px solid var(--c-coding); outline-offset: 2px;
   }
 
-  .field { display: block; margin-bottom: 1rem; }
-  .field label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+  /* ── Forms ──────────────────────────────────────────────────────────── */
+  .field { display: block; margin-bottom: 1.1rem; }
+  .field label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem; }
   .field input, .field select, .field textarea {
-    width: 100%; padding: 0.4rem 0.5rem; border: 1px solid var(--border);
-    border-radius: 3px; background: #fff; font: inherit; color: inherit;
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--rule);
+    border-radius: 4px; background: var(--surface); font: inherit; color: inherit;
   }
-  .field .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }
+  .field input:hover, .field select:hover, .field textarea:hover { border-color: var(--muted); }
+  .field input[aria-invalid='true'] { border-color: var(--danger); }
+  .field .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem; }
 
-  .btn { padding: 0.4rem 0.9rem; border: 1px solid var(--accent); border-radius: 3px;
-         background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
-  .btn.secondary { background: #fff; color: var(--accent); }
-  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn { padding: 0.55rem 1.1rem; border: 1px solid var(--ink); border-radius: 4px;
+         background: var(--ink); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: #26324a; }
+  .btn.secondary { background: transparent; color: var(--ink); }
+  .btn.secondary:hover { background: var(--surface); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
 
   .msg-error { color: var(--danger); margin: 0.5rem 0; }
-  .msg-ok { color: var(--accent); margin: 0.5rem 0; }
+  .msg-ok { color: var(--c-study); font-weight: 600; margin: 0.5rem 0; }
 
-  table.plain { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-  table.plain th, table.plain td { text-align: left; padding: 0.4rem 0.5rem;
-                                   border-bottom: 1px solid var(--border); }
+  /* ── Tables ─────────────────────────────────────────────────────────── */
+  table.plain { width: 100%; border-collapse: collapse; font-size: 0.95rem;
+                font-variant-numeric: tabular-nums; }
+  table.plain th, table.plain td { text-align: left; padding: 0.6rem 0.5rem 0.6rem 0;
+                                   border-bottom: 1px solid var(--rule); }
   table.plain th { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
-  table.plain td.num, table.plain th.num { text-align: right; }
+  table.plain td.num, table.plain th.num { text-align: right; padding-right: 0; padding-left: 0.5rem; }
+  .scroll-x { overflow-x: auto; }
 
-  /* Thin single-colour progress bar. */
-  .bar { height: 6px; background: #e6e6e2; border-radius: 2px; overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); }
-  .bar.over > div { background: var(--danger); }
+  /* ── Activity colour ────────────────────────────────────────────────── */
+  .dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px;
+         margin-right: 0.55rem; vertical-align: -0.05rem; }
+
+  /* ── The day ribbon: one bar = a 16 hour waking day ─────────────────── */
+  .ribbon { display: flex; gap: 2px; height: 3.25rem; background: var(--rule);
+            border-radius: 4px; overflow: hidden; }
+  .ribbon > span { display: block; height: 100%; min-width: 3px; }
+  .ribbon-scale { display: flex; justify-content: space-between; margin-top: 0.4rem;
+                  font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .key { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: 0; }
+  .key li { display: flex; align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--rule); }
+  .key .name { flex: 1; }
+  .key .time { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* ── Goal progress ──────────────────────────────────────────────────── */
+  .bar { height: 8px; background: var(--rule); border-radius: 2px; overflow: hidden; margin-top: 0.4rem; }
+  .bar > div { height: 100%; }
+  .goal { margin-bottom: 1.25rem; }
+  .goal .row { display: flex; justify-content: space-between; gap: 1rem; }
+  .goal .row .status { font-variant-numeric: tabular-nums; }
+  .goal .over { color: var(--danger); font-weight: 600; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* Outside @layer on purpose: these class names are built at runtime (c-${activity}),
+   so Tailwind cannot see them in the source and would purge them from a layer. */
+.c-SOCIAL_MEDIA { background: var(--c-social); }
+.c-CODING { background: var(--c-coding); }
+.c-STUDY { background: var(--c-study); }
+.c-EXERCISE { background: var(--c-exercise); }
+.c-OTHER { background: var(--c-other); }
